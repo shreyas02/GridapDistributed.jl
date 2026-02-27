@@ -123,6 +123,18 @@ function Geometry.add_tag_from_tags!(labels::DistributedFaceLabeling, name, tags
   end
 end
 
+function Geometry.add_tag_from_tags_complementary!(labels::DistributedFaceLabeling, name::String, tag)
+  map(local_views(labels)) do labels
+    Geometry.add_tag_from_tags_complementary!(labels,name,tag)
+  end
+end
+
+function Geometry.add_tag_from_tags_setdiff!(labels::DistributedFaceLabeling, name::String, tag1, tag2)
+  map(local_views(labels)) do labels
+    Geometry.add_tag_from_tags_setdiff!(labels,name,tag1,tag2)
+  end
+end
+
 function Geometry.get_face_mask(labels::DistributedFaceLabeling, tags, d::Integer)
   map(local_views(labels)) do labels
     get_face_mask(labels, tags, d)
@@ -578,6 +590,30 @@ function Geometry.num_cells(a::DistributedTriangulation{Df}) where Df
 end
 
 # Triangulation constructors
+
+function Geometry.Triangulation(model::DistributedDiscreteModel, args...;kwargs...)
+  D = num_cell_dims(model)
+  Triangulation(no_ghost,ReferenceFE{D},model, args...;kwargs...)
+end
+
+function Geometry.Triangulation(::Type{ReferenceFE{D}},model::DistributedDiscreteModel, args...;kwargs...) where D
+  Triangulation(no_ghost, ReferenceFE{D}, model, args...; kwargs...)
+end
+
+function Geometry.Triangulation(portion, model::DistributedDiscreteModel, args...;kwargs...)
+  D = num_cell_dims(model)
+  Triangulation(portion,ReferenceFE{D},model, args...;kwargs...)
+end
+
+function Geometry.Triangulation(
+  portion,::Type{ReferenceFE{D}},model::DistributedDiscreteModel, args...;kwargs...) where D
+  gids = get_face_gids(model,D)
+  trians = map(local_views(model)) do model
+    Triangulation(ReferenceFE{D},model, args...;kwargs...)
+  end
+  parent = DistributedTriangulation(trians,model)
+  return filter_cells_when_needed(portion,gids,parent)
+end
 
 function Geometry.Triangulation(model::DistributedDiscreteModel;kwargs...)
   D = num_cell_dims(model)
