@@ -408,10 +408,10 @@ function FESpaces.TrialFESpace(fun,f::DistributedSingleFieldFESpace)
 end
 
 function FESpaces.TrialFESpace!(f::DistributedSingleFieldFESpace,fun)
-  spaces = map(f.spaces) do s
+  map(f.spaces) do s
     TrialFESpace!(s,fun)
   end
-  DistributedSingleFieldFESpace(spaces,f.gids,f.trian,f.vector_type,f.metadata)
+  return f
 end
 
 function FESpaces.TrialFESpace(f::DistributedSingleFieldFESpace,cf::DistributedCellField)
@@ -437,124 +437,180 @@ function FESpaces.HomogeneousTrialFESpace(f::DistributedSingleFieldFESpace)
 end
 
 function generate_gids(
-  model::DistributedDiscreteModel{Dc},
+  model::DistributedDiscreteModel,
   spaces::AbstractArray{<:SingleFieldFESpace}
-) where Dc
-  cell_to_ldofs = map(get_cell_dof_ids,spaces)
-  nldofs = map(num_free_dofs,spaces)
+)
   cell_gids = get_cell_gids(model)
-  generate_gids(cell_gids,cell_to_ldofs,nldofs)
+  generate_gids(cell_gids,spaces)
 end
 
 function generate_gids(
-  trian::DistributedTriangulation{Dc},
+  trian::DistributedTriangulation,
   spaces::AbstractArray{<:SingleFieldFESpace}
-) where Dc
+)
+  cell_gids = generate_cell_gids(trian)
+  generate_gids(cell_gids,spaces)
+end
+
+function generate_gids(
+  cell_gids::PRange, spaces::AbstractArray{<:SingleFieldFESpace}
+)
   cell_to_ldofs = map(get_cell_dof_ids,spaces)
   nldofs = map(num_free_dofs,spaces)
-  cell_gids = generate_cell_gids(trian)
   generate_gids(cell_gids,cell_to_ldofs,nldofs)
 end
 
-function FESpaces.interpolate(u,f::DistributedSingleFieldFESpace)
+function FESpaces.interpolate(u,f::DistributedSingleFieldFESpace, isconsistent=false)
   free_values = zero_free_values(f)
-  interpolate!(u,free_values,f)
+  interpolate!(u,free_values,f,isconsistent)
 end
 
 function FESpaces.interpolate!(
-  u,free_values::AbstractVector,f::DistributedSingleFieldFESpace)
+  u,
+  free_values::AbstractVector,
+  f::DistributedSingleFieldFESpace, 
+  isconsistent=false)
   map(f.spaces,local_views(free_values)) do V,vec
     interpolate!(u,vec,V)
   end
-  FEFunction(f,free_values)
+  FEFunction(f,free_values,isconsistent)
 end
 
 function FESpaces.interpolate!(
-  u::DistributedCellField,free_values::AbstractVector,f::DistributedSingleFieldFESpace)
-  map(local_views(u),f.spaces,local_views(free_values)) do ui,V,vec
-    interpolate!(ui,vec,V)
+  u::DistributedCellField,
+  free_values::AbstractVector,
+  f::DistributedSingleFieldFESpace, 
+  isconsistent=false)
+  map(local_views(u),f.spaces,local_views(free_values)) do u, V,vec
+    interpolate!(u,vec,V)
   end
-  FEFunction(f,free_values)
+  FEFunction(f,free_values,isconsistent)
 end
 
-function FESpaces.interpolate_dirichlet(u, f::DistributedSingleFieldFESpace)
+function FESpaces.interpolate_dirichlet(u, f::DistributedSingleFieldFESpace, isconsistent=false)
   free_values = zero_free_values(f)
   dirichlet_values = get_dirichlet_dof_values(f)
-  interpolate_dirichlet!(u,free_values,dirichlet_values,f)
+  interpolate_dirichlet!(u,free_values,dirichlet_values,f,isconsistent)
 end
 
 function FESpaces.interpolate_dirichlet!(
   u, free_values::AbstractVector,
   dirichlet_values::AbstractArray{<:AbstractVector},
-  f::DistributedSingleFieldFESpace)
+  f::DistributedSingleFieldFESpace, isconsistent=false)
   map(f.spaces,local_views(free_values),dirichlet_values) do V,fvec,dvec
     interpolate_dirichlet!(u,fvec,dvec,V)
   end
-  FEFunction(f,free_values,dirichlet_values)
+  FEFunction(f,free_values,dirichlet_values,isconsistent)
 end
 
 function FESpaces.interpolate_dirichlet!(
   u::DistributedCellField, free_values::AbstractVector,
   dirichlet_values::AbstractArray{<:AbstractVector},
-  f::DistributedSingleFieldFESpace)
+  f::DistributedSingleFieldFESpace, isconsistent=false)
   map(local_views(u), f.spaces,local_views(free_values),dirichlet_values) do u,V,fvec,dvec
     interpolate_dirichlet!(u,fvec,dvec,V)
   end
-  FEFunction(f,free_values,dirichlet_values)
+  FEFunction(f,free_values,dirichlet_values,isconsistent)
 end
 
-function FESpaces.interpolate_everywhere(u, f::DistributedSingleFieldFESpace)
+function FESpaces.interpolate_everywhere(u, f::DistributedSingleFieldFESpace, isconsistent=false)
   free_values = zero_free_values(f)
   dirichlet_values = get_dirichlet_dof_values(f)
-  interpolate_everywhere!(u,free_values,dirichlet_values,f)
+  interpolate_everywhere!(u,free_values,dirichlet_values,f,isconsistent)
 end
 
 function FESpaces.interpolate_everywhere!(
   u, free_values::AbstractVector,
   dirichlet_values::AbstractArray{<:AbstractVector},
-  f::DistributedSingleFieldFESpace)
+  f::DistributedSingleFieldFESpace, isconsistent=false)
   map(f.spaces,local_views(free_values),dirichlet_values) do V,fvec,dvec
     interpolate_everywhere!(u,fvec,dvec,V)
   end
-  FEFunction(f,free_values,dirichlet_values)
+  FEFunction(f,free_values,dirichlet_values,isconsistent)
 end
 
 function FESpaces.interpolate_everywhere!(
   u::DistributedCellField, free_values::AbstractVector,
   dirichlet_values::AbstractArray{<:AbstractVector},
-  f::DistributedSingleFieldFESpace)
+  f::DistributedSingleFieldFESpace, isconsistent=false)
   map(local_views(u),f.spaces,local_views(free_values),dirichlet_values) do ui,V,fvec,dvec
     interpolate_everywhere!(ui,fvec,dvec,V)
   end
-  FEFunction(f,free_values,dirichlet_values)
+  FEFunction(f,free_values,dirichlet_values,isconsistent)
 end
 
 # Factories
 
+# function FESpaces.FESpace(
+#   model::DistributedDiscreteModel,reffe;split_own_and_ghost=false,constraint=nothing,kwargs...
+# )
+#   spaces = map(local_views(model)) do m
+#     FESpace(m,reffe;kwargs...)
+#   end
+#   gids =  generate_gids(model,spaces)
+#   trian = DistributedTriangulation(map(get_triangulation,spaces),model)
+#   vector_type = _find_vector_type(spaces,gids;split_own_and_ghost=split_own_and_ghost)
+#   space = DistributedSingleFieldFESpace(spaces,gids,trian,vector_type)
+#   return _add_distributed_constraint(space,reffe,constraint)
+# end
+# 
+# function FESpaces.FESpace(
+#   _trian::DistributedTriangulation,reffe;split_own_and_ghost=false,constraint=nothing,kwargs...
+# )
+#   trian = add_ghost_cells(_trian)
+#   spaces = map(local_views(trian)) do t
+#     FESpace(t,reffe;kwargs...)
+#   end
+#   gids = generate_gids(trian,spaces)
+#   vector_type = _find_vector_type(spaces,gids;split_own_and_ghost=split_own_and_ghost)
+#   space = DistributedSingleFieldFESpace(spaces,gids,trian,vector_type)
+#   return _add_distributed_constraint(space,reffe,constraint)
+# end
+
 function FESpaces.FESpace(
-  model::DistributedDiscreteModel,reffe;split_own_and_ghost=false,constraint=nothing,kwargs...
+  model::DistributedDiscreteModel,args...;kwargs...
 )
-  spaces = map(local_views(model)) do m
-    FESpace(m,reffe;kwargs...)
-  end
-  gids =  generate_gids(model,spaces)
-  trian = DistributedTriangulation(map(get_triangulation,spaces),model)
-  vector_type = _find_vector_type(spaces,gids;split_own_and_ghost=split_own_and_ghost)
-  space = DistributedSingleFieldFESpace(spaces,gids,trian,vector_type)
-  return _add_distributed_constraint(space,reffe,constraint)
+  trian = Triangulation(with_ghost,model)
+  cell_gids = get_cell_gids(model)
+  DistributedSingleFieldFESpace(model,trian,cell_gids,args...;kwargs...)
 end
 
 function FESpaces.FESpace(
-  _trian::DistributedTriangulation,reffe;split_own_and_ghost=false,constraint=nothing,kwargs...
+  _trian::DistributedTriangulation,args...;kwargs...
 )
   trian = add_ghost_cells(_trian)
-  spaces = map(local_views(trian)) do t
-    FESpace(t,reffe;kwargs...)
+  cell_gids = generate_cell_gids(trian)
+  model = DistributedDiscreteModel(map(get_active_model,local_views(trian)), cell_gids)
+  DistributedSingleFieldFESpace(model,trian,cell_gids,args...;kwargs...)
+end
+
+function DistributedSingleFieldFESpace(
+  model::DistributedDiscreteModel,
+  trian::DistributedTriangulation,
+  cell_gids::PRange, reffe; kwargs...
+)
+  cell_reffe = map(local_views(model)) do model
+    ReferenceFE(model,reffe)
   end
-  gids = generate_gids(trian,spaces)
-  vector_type = _find_vector_type(spaces,gids;split_own_and_ghost=split_own_and_ghost)
+  DistributedSingleFieldFESpace(model,trian,cell_gids,cell_reffe;kwargs...)
+end
+
+function DistributedSingleFieldFESpace(
+  model::DistributedDiscreteModel, # Active model, not bg model
+  trian::DistributedTriangulation,
+  cell_gids::PRange, 
+  cell_reffe::AbstractArray; 
+  split_own_and_ghost=false, 
+  constraint=nothing,
+  kwargs...
+)
+  spaces = map(local_views(model),local_views(trian),cell_reffe) do model, trian, cell_reffe
+    FESpace(model,cell_reffe;trian,kwargs...)
+  end
+  gids = generate_gids(cell_gids,spaces)
+  vector_type = _find_vector_type(spaces,gids;split_own_and_ghost)
   space = DistributedSingleFieldFESpace(spaces,gids,trian,vector_type)
-  return _add_distributed_constraint(space,reffe,constraint)
+  return _add_distributed_constraint(space,cell_reffe,constraint)
 end
 
 function _find_vector_type(spaces,gids;split_own_and_ghost=false)
@@ -577,6 +633,7 @@ end
 function _add_distributed_constraint(
   F::DistributedFESpace,reffe::ReferenceFE,constraint
 )
+  isnothing(constraint) && return F
   order = get_order(reffe)
   _add_distributed_constraint(F,order,constraint)
 end
@@ -584,27 +641,37 @@ end
 function _add_distributed_constraint(
   F::DistributedFESpace,reffe::Tuple{<:ReferenceFEName,Any,Any},constraint
 )
+  isnothing(constraint) && return F
   args = reffe[2]
   order = maximum(args[2])
   _add_distributed_constraint(F,order,constraint)
 end
 
+function _add_distributed_constraint(
+  F::DistributedFESpace,cell_reffe::AbstractArray,constraint
+)
+  isnothing(constraint) && return F
+  order = map(cell_reffe) do cell_reffe
+    reffes, ctypes = compress_cell_data(cell_reffe)
+    return maximum(get_order,reffes;init=0)
+  end |> getany
+  _add_distributed_constraint(F,order,constraint)
+end
+
 function _add_distributed_constraint(F::DistributedFESpace,order::Integer,constraint)
-  if isnothing(constraint)
-    V = F
-  elseif constraint == :zeromean
+  isnothing(constraint) && return F
+  if constraint == :zeromean
     _trian = get_triangulation(F)
     model = get_background_model(_trian)
     trian = remove_ghost_cells(_trian,get_cell_gids(model))
     dΩ = Measure(trian,order)
-    V = ZeroMeanFESpace(F,dΩ)
+    return ZeroMeanFESpace(F,dΩ)
   else
     @unreachable """\n
     The passed option constraint=$constraint is not valid.
     Valid values for constraint: nothing, :zeromean
     """
   end
-  V
 end
 
 # Assembly
@@ -877,13 +944,15 @@ end
 # which does not properly interpolate the function provided. 
 # With this change, we are interpolating in the unconstrained space and then
 # substracting the mean.
-function FESpaces.interpolate!(u,free_values::AbstractVector,f::DistributedZeroMeanFESpace)
+function FESpaces.interpolate!(u,free_values::AbstractVector,
+                               f::DistributedZeroMeanFESpace, isconsistent=false)
   dirichlet_values = get_dirichlet_dof_values(f)
-  interpolate_everywhere!(u,free_values,dirichlet_values,f)
+  interpolate_everywhere!(u,free_values,dirichlet_values,f,isconsistent)
 end
-function FESpaces.interpolate!(u::DistributedCellField,free_values::AbstractVector,f::DistributedZeroMeanFESpace)
+function FESpaces.interpolate!(u::DistributedCellField,free_values::AbstractVector,
+                               f::DistributedZeroMeanFESpace, isconsistent=false)
   dirichlet_values = get_dirichlet_dof_values(f)
-  interpolate_everywhere!(u,free_values,dirichlet_values,f)
+  interpolate_everywhere!(u,free_values,dirichlet_values,f,isconsistent)
 end
 
 function _compute_new_distributed_fixedval(
@@ -904,6 +973,8 @@ function _compute_new_distributed_fixedval(
   c = reduce(+,c_i,init=zero(eltype(c_i)))
   return c
 end
+
+# Constant FESpace
 
 """
     ConstantFESpace(
@@ -951,4 +1022,25 @@ function FESpaces.ConstantFESpace(
   trian = DistributedTriangulation(map(get_triangulation,spaces),model)
   vector_type = _find_vector_type(spaces,gids)
   return DistributedSingleFieldFESpace(spaces,gids,trian,vector_type)
+end
+
+# Polytopal FESpaces
+
+function FESpaces.PolytopalFESpace(
+  _trian::DistributedTriangulation,args...;kwargs...
+)
+  trian = add_ghost_cells(_trian)
+  spaces = map(local_views(trian)) do t
+    FESpaces.PolytopalFESpace(t,args...;kwargs...)
+  end
+  gids = generate_gids(trian,spaces)
+  vector_type = _find_vector_type(spaces,gids)
+  return DistributedSingleFieldFESpace(spaces,gids,trian,vector_type)
+end
+
+function FESpaces.PolytopalFESpace(
+  model::DistributedDiscreteModel,args...;kwargs...
+)
+  trian = Triangulation(with_ghost,model)
+  FESpaces.PolytopalFESpace(trian,args...;kwargs...)
 end

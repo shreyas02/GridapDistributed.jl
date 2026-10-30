@@ -7,11 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed 
+### Fixed
 
-- Added support to create pvd files when the triangulation is not there on all processes. To achive this, a new method for the createpvd function is added. 
+- Added support to create pvd files when the triangulation is not there on all processes. To achive this, a new method for the createpvd function is added.
 
-## [0.4.7] 2025-03-04
+## [0.4.17] - 2026-06-01
+
+### Added
+
+- Added tag support for AD to align with Gridap[#1181](https://github.com/gridap/Gridap.jl/pull/1181) and Gridap[#1297](https://github.com/gridap/Gridap.jl/pull/1297). Since PR[#204](https://github.com/gridap/GridapDistributed.jl/pull/204).
+
+### Fixed
+
+- Fixed bug in `TrialFESpace!`. Since PR[#208](https://github.com/gridap/GridapDistributed.jl/pull/208).
+
+## [0.4.16] - 2026-04-29
+
+### Fixed
+
+- `get_facet_owners(::DistributeDiscreteModel)` now chooses the owner with maximum gid. Since PR[#205](https://github.com/gridap/GridapDistributed.jl/pull/205).
+
+## [0.4.15] - 2026-03-23
+
+### Fixed
+
+- Fixed `_add_distributed_constraint` in the case where the underlying `FESpace` has multiple (different) reffes. Since PR[#201](https://github.com/gridap/GridapDistributed.jl/pull/201).
+
+## [0.4.14] - 2026-03-20
+
+### Changed
+
+- Added support for Gridap 0.20.0. Since PR[#200](https://github.com/gridap/GridapDistributed.jl/pull/200).
+
+## [0.4.13] - 2026-03-16
+
+### Fixed
+
+- BUG fix in `_generate_sign_flips(...)` private helper function for Nedelec elements. Since PR[#199](https://github.com/gridap/GridapDistributed.jl/pull/199).
+
+### Added
+
+- An Hcurl projection test case. Since PR[#199](https://github.com/gridap/GridapDistributed.jl/pull/199).
+
+## [0.4.12] - 2026-03-14
+
+### Changed
+
+- Split tests to reduce CI time, removed sysimage compilation. Since PR[#197](https://github.com/gridap/GridapDistributed.jl/pull/197).
+
+### Fixed
+
+- Fixed `is_slave == false` (comparison instead of assignment) in `DivConformingFESpaces`, and simplified the boundary-facet branch by removing the now-redundant `if/else`. Since PR[#196](https://github.com/gridap/GridapDistributed.jl/pull/196/).
+- Fixed `BlockPMatrix{V}(::UndefInitializer, rows, cols)` constructor dropping the `cols` argument, causing a `MethodError` at runtime. Since PR[#194](https://github.com/gridap/GridapDistributed.jl/pull/194/).
+- Fixed `local_views(::BlockPMatrix, rows, cols)` indexing 1D block-range vectors with a 2D `CartesianIndex`, causing `BoundsError` for any multi-field problem with ≥2 fields. Since PR[#194](https://github.com/gridap/GridapDistributed.jl/pull/194/).
+- Fixed `mul!(y::BlockPVector, A::BlockPMatrix, x::BlockPVector, α, β)` computing `α*β*(A*x)` instead of `α*(A*x) + β*y`; the 3-arg `mul!` was also updated to correctly zero `y` before accumulating. Since PR[#194](https://github.com/gridap/GridapDistributed.jl/pull/194/).
+- Replaced fragile closure side-effect in `DistributedVisualizationData.filebase` with `getany(map(...))` for correct and idiomatic behaviour in both debug and MPI modes. Since PR[#195](https://github.com/gridap/GridapDistributed.jl/pull/195/).
+- Changes required to generalize Nedelec Hexahedral elements for meshes beyond Cartesian Meshes. Since PR[#198](https://github.com/gridap/GridapDistributed.jl/pull/198/).
+
+## [0.4.11] - 2026-02-20
+
+### Added
+
+- Added further support for polytopal methods and meshes. Since PR[#192](https://github.com/gridap/GridapDistributed.jl/pull/192).
+- Added new methods to ensure consistent orientation of faces across processors. Since PR[#192](https://github.com/gridap/GridapDistributed.jl/pull/192).
+- Added a new function `restrict_gids` to create a subsets of gids. Since PR[#192](https://github.com/gridap/GridapDistributed.jl/pull/192).
+- New overloads for the `TrialFESpace` constructor where the data to be imposed is passed as a `DistributedCellField`. Since PR[#185](https://github.com/gridap/GridapDistributed.jl/pull/185).
+- Added missing `FESpace` constructors for distributed triangulations specialized for the RT FEs case. Since PR[#188](https://github.com/gridap/GridapDistributed.jl/pull/188)
+- Added optional argument `isconsistent` to interpolate functions. Since PR[#190](https://github.com/gridap/GridapDistributed.jl/pull/190).
+
+## [0.4.10] - 2025-09-29
+
+### Added
+
+- Added support for multiple ghost layers on cartesian models. Since PR[#182](https://github.com/gridap/GridapDistributed.jl/pull/182).
+- Added new way of doing AD for MultiField, where partials are computed separately for each field then merged together. Since PR[#176](https://github.com/gridap/GridapDistributed.jl/pull/176).
+
+### Fixed
+
+- Fixed issue [#177](https://github.com/gridap/GridapDistributed.jl/issues/177) and [#170](https://github.com/gridap/GridapDistributed.jl/issues/170). Since PR[#180](https://github.com/gridap/GridapDistributed.jl/pull/180).
+- Fixed issue where calling `Boundary(with_ghost, dmodel)` would return the local processor boundaries (which include the faces at the interface between processors) instead of returning the local part of the global boundary. Since PR[#180](https://github.com/gridap/GridapDistributed.jl/pull/180).
+
+## [0.4.9] - 2025-08-08
+
+### Added
+
+- Added a new framework for redistributing dofs, which is more efficient and flexible than the previous one. Since PR[#179](https://github.com/gridap/GridapDistributed.jl/pull/179).
+
+### Fixed
+
+- Fixed bug when redistributing periodic cartesian models. Since PR[#179](https://github.com/gridap/GridapDistributed.jl/pull/179).
+
+## [0.4.8] - 2025-06-11
+
+### Added
+
+- Added support for Gridap v0.19, with distributed counterparts for the new feaures introduced. This includes support for polytopal meshes, polytopal methods and patch assembly. Since PR[#175](https://github.com/gridap/GridapDistributed.jl/pull/175).
+- Added `MacroDiscreteModel`, which gives a global numbering and classification of the interfaces between processors. Since PR[#175](https://github.com/gridap/GridapDistributed.jl/pull/175).
+
+## [0.4.7] - 2025-03-04
 
 ### Added
 
